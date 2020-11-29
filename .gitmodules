@@ -1,0 +1,3 @@
+[submodule "webcam2rgb"]
+	path = webcam2rgb
+	url = git@github.com:berndporr/webcam2rgb.git
