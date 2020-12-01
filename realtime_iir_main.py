@@ -9,17 +9,20 @@ from pyqtgraph.Qt import QtCore, QtGui
 #import filters
 import IIR2Filter
 import IIRFilter
+
 sys.path.append("./webcam2rgb")
 import webcam2rgb
 
 # create a global QT application object
 app = QtGui.QApplication(sys.argv)
 
+#global counter for the framerate
+counter = 0
+
 class QtPanningPlot:
 
     def __init__(self,title, num_max_data=100000):
         #addvariable for caculate:
-        self.sos 
 
         self.win = pg.GraphicsLayoutWidget()
         self.win.setWindowTitle(title)
@@ -48,7 +51,7 @@ class QtPanningPlot:
         self.timer.timeout.connect(self.update)
         self.timer.start(100)
 
-        #layout 
+        #set layout 
         self.layout.addWidget(self.plt_filtered, 0, 0)
         self.layout.addWidget(self.plt_rawdata, 1, 0)
 
@@ -66,7 +69,6 @@ class QtPanningPlot:
         #filter and calculate in here
 
 
-#
 application = QtPanningPlot("helloworld")
     
 def callBack(retval, data):
@@ -77,6 +79,8 @@ def callBack(retval, data):
 
 
 camera = webcam2rgb.Webcam2rgb()
+
+#check the samplling rate of 
 camera.start(callback = callBack, cameraNumber=0)
 print("camera samplerate: ", camera.cameraFs(), "Hz")
 
