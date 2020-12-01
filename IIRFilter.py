@@ -1,9 +1,11 @@
+from math import cos
 import scipy.signal as signal
 import numpy as np
 from IIR2Filter import IIR2Filter
+import matplotlib.pyplot as plt
 
 class IIRFilter:
-    def __init__(self, sos):
+    def __init__(self, sos: np.ndarray):
 
         self.sos_filters = []
         #generate 2nd order filters
@@ -20,8 +22,20 @@ class IIRFilter:
 
 
 if(__name__ == "__main__"):
-    sos = signal.cheby1(8, 10, 0.1*2, output='sos')
+    fs = 1000
+    T = 1/fs
+    n = 1000
+    x = np.linspace(0,(n-1)*T, n)
+    y = 3*np.cos(2*np.pi*80*x)+np.cos(2*np.pi*200*x)+np.cos(2*np.pi*300*x)
+
+    sos = signal.cheby1(8, 1, 100/fs*2, output='sos')
+
+    result = np.array([])
     filter = IIRFilter(sos)
-    data = 10
-    y = x.filter(data)
-    print(y)
+    for yi in y:
+        result = np.append(result, filter.filter(yi))
+    
+    plt.plot(y, label="raw data")
+    plt.plot(result, label = "filtered")
+    plt.legend()
+    plt.show()
