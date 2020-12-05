@@ -1,38 +1,35 @@
 #this is a file to test what we design filter
-from os import wait
 import pickle 
+from scipy.fft import fft, fftfreq, fftshift
 import numpy as np
-import sys
-import time
+import matplotlib.pyplot as plt
 
-sys.path.append("./webcam2rgb")
-import webcam2rgb
+def load_data(path):
+    f = open(path, 'rb')
+    d = pickle.load(f)
+    f.close()
+    return d
 
-dataclips = [[],[], []]
+def mag2db(mag):
+    return 20*np.log(mag)
 
-def callBack(retval, data):
-    b = data[0]
-    g = data[1]
-    r = data[2]
-    print("in")
-    dataclips[0].append[b]
-    dataclips[1].append[g]
-    dataclips[2].append[r]
+d_noise = np.array(load_data("./data/data_clip_noise.dat"))
+d_true = np.array(load_data("./data/data_clip_true.dat"))
+
+N_noise = len(d_noise)
+N_true =  len(d_true)
+Fs = 30.0
+
+xf_noise = fftshift(fftfreq(N_noise, 1/Fs))
+yf_noise=fftshift(fft(d_noise))
+xf_true = fftshift(fftfreq(N_true, 1/Fs))
+yf_true = fftshift(fft(d_true))
 
 
-camera = webcam2rgb.Webcam2rgb()
-
-#check the samplling rate of 
-camera.start(callback = callBack, cameraNumber=0)
-
-while 1:
-    time.sleep(0.01)
-
-print(dataclips)
-f = open("./data/data_clip.dat", 'wb')
-pickle.dump(dataclips, f)
-f.close()
+plt.plot(xf_noise, mag2db(abs(yf_noise)), label="noise")
+plt.plot(xf_true, mag2db(abs(yf_true)), label="detected data")
+plt.legend()
 
 
 
-camera.stop()
+plt.show()

@@ -7,31 +7,22 @@ import pickle
 import pyqtgraph as pg
 from pyqtgraph.Qt import QtCore, QtGui
 
-#import filters
-import IIR2Filter
-import IIRFilter
+from QtPanningPlog import *
 
 sys.path.append("./webcam2rgb")
 import webcam2rgb
 #import pannal
-from QtPanningPlog import *
 
 # create a global QT application object
 app = QtGui.QApplication(sys.argv)
 panningPlot = QtPanningPlot("helloworld")
 
-#data episode
-dataEpisode = []
     
 def callBack(retval, data):
     b = data[0]
     g = data[1]
     r = data[2]
     panningPlot.addData(r)
-
-    #save data episode
-    global dataEpisode
-    dataEpisode = panningPlot.data_raw
 
 camera = webcam2rgb.Webcam2rgb()
 
@@ -42,9 +33,8 @@ print("camera samplerate: ", camera.cameraFs(), "Hz")
 app.exec_()
 
 #save data episode for better design filter
-print(dataEpisode)
 f = open("./data/data_clip.dat", 'wb')
-pickle.dump(dataEpisode, f)
+pickle.dump(panningPlot.data_raw, f)
 f.close()
 
 camera.stop()
