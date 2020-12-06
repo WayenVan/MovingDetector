@@ -31,5 +31,4 @@ plt.plot(xf_true, mag2db(abs(yf_true)), label="detected data")
 plt.legend()
 
 
-
 plt.show()
