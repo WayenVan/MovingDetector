@@ -11,7 +11,7 @@ import pyqtgraph as pg
 from pyqtgraph.Qt import QtCore, QtGui
 
 from PyQt5.QtWidgets import QGridLayout, QLabel, QCheckBox, QPushButton, QPlainTextEdit, QTextEdit
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QMetaType
 
 #import filters
 import IIRFilter
@@ -59,14 +59,17 @@ class LogBrowser(QtGui.QMainWindow):
         self.setGeometry(400, 100, 400, 400)
 
         self.log_view = QTextEdit()
-
         self.setCentralWidget(self.log_view)
 
     def append(self, str):
         self.log_view.append(str)
 
-class QtPanningPlot:
+class MainWindow(QtGui.QMainWindow):
+    def __init__(self):
+        super().__init__()
+        
 
+class QtPanningPlot(QtGui.QmainWindow):
     def __init__(self,title, num_max_data=100000):
 
         #data and filter for calculating
@@ -87,7 +90,6 @@ class QtPanningPlot:
         #text window
         self.log_win = LogBrowser()
         
-
         #main window
         self.win = pg.GraphicsLayoutWidget()
         self.win.setWindowTitle(title)
@@ -172,9 +174,11 @@ class QtPanningPlot:
                 #update log file and text on the window
                 seconds = time.time()
                 local_time = time.ctime(seconds)
-
                 self.label.setText("A person pass at {}".format(local_time))
-                self.log_win.append("A person pass at {}\n".format(local_time))
+
+                #emit signal
+                self.detected_person.emit("A person pass at {}\n".format(local_time))
+
 
                 log_file = open("history.log", 'a')
                 log_file.write("A person pass at {}".format(local_time))
