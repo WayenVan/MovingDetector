@@ -10,8 +10,8 @@ import scipy.signal as signal
 import pyqtgraph as pg
 from pyqtgraph.Qt import QtCore, QtGui
 
-from PyQt5.QtWidgets import QGridLayout, QLabel, QCheckBox, QPushButton, QPlainTextEdit, QTextEdit
-from PyQt5.QtCore import Qt, QMetaType
+from PyQt5.QtWidgets import QGridLayout, QLabel, QCheckBox, QPushButton, QTextEdit, QMainWindow, QWidget
+from PyQt5.QtCore import Qt
 
 #import filters
 import IIRFilter
@@ -51,26 +51,53 @@ class PersonDetector:
         self.data_previous = newData
 
 
-class LogBrowser(QtGui.QMainWindow):
-    """a log browser to view"""
+class MainWindow(QMainWindow):
+    """Main window of QT"""
+    def __init__(self, title):
+        super(QMainWindow, self).__init__()
+        self.setWindowTitle(title)
+        self.setStyleSheet("QMainWindow {background: 'white'}")
+
+        self.main_widget = PlotWidget()
+        self.setCentralWidget(self.main_widget)
+
+        self.log_browser = LogBrowser()
+
+        #connect signal
+        self.main_widget.open_log.connect(self.log_browser.open)
+        self.main_widget.detected.connect(self.log_browser.detected)
+        
+        self.show()
+
+    def addData(self, d):
+        self.main_widget.addData(d)
+
+class LogBrowser(QMainWindow):
+    """main log browswer"""
     def __init__(self):
-        super().__init__()
+        super(QMainWindow, self).__init__()
         self.setWindowTitle("log browser")
         self.setGeometry(400, 100, 400, 400)
 
         self.log_view = QTextEdit()
         self.setCentralWidget(self.log_view)
 
-    def append(self, str):
+    def detected(self, str):
         self.log_view.append(str)
 
-class MainWindow(QtGui.QMainWindow):
-    def __init__(self):
-        super().__init__()
-        
+    def open(self, bool):
+        if bool:
+            self.show()
 
-class QtPanningPlot(QtGui.QmainWindow):
-    def __init__(self,title, num_max_data=100000):
+class PlotWidget(pg.GraphicsLayoutWidget):
+    """plotting and detecting widget"""
+    detected = QtCore.pyqtSignal(str)
+    open_log = QtCore.pyqtSignal(bool)
+
+    def __init__(self):
+        super(pg.GraphicsLayoutWidget, self).__init__()
+        #set colour
+        self.setBackground('w')
 
         #data and filter for calculating
         self.data_raw = []
@@ -87,13 +114,7 @@ class QtPanningPlot(QtGui.QmainWindow):
                                         btype='bandstop',
                                         output='sos'))
 
-        #text window
-        self.log_win = LogBrowser()
-        
-        #main window
-        self.win = pg.GraphicsLayoutWidget()
-        self.win.setWindowTitle(title)
-        self.win.setBackground('w')
+        #setlayout
         self.layout = QtGui.QGridLayout()                             
 
         #add widgets in qt
@@ -107,8 +128,6 @@ class QtPanningPlot(QtGui.QmainWindow):
         self.plt.getAxis('bottom').setTextPen(pen_axis)
         self.plt.getAxis('left').setPen(pen_axis)
         self.plt.getAxis('left').setTextPen(pen_axis)
-        
-
         self.curve = self.plt.plot(pen=pen_line)
 
         #add Radio buttons
@@ -116,8 +135,10 @@ class QtPanningPlot(QtGui.QmainWindow):
         self.select_boxlayout = QtGui.QGridLayout()
         self.rb_lowpss = QCheckBox("remove High")
         self.rb_lowpss.setChecked(True)
+        self.rb_lowpss.clicked.connect(self.check_all_filter_selected)
         self.rb_mv185 = QCheckBox("remove 1.85Hz")
         self.rb_mv185.setChecked(True)
+        self.rb_mv185.clicked.connect(self.check_all_filter_selected)
         self.select_boxlayout.addWidget(self.rb_lowpss, 0, 0)
         self.select_boxlayout.addWidget(self.rb_mv185, 0, 1)
         self.select_box.setLayout(self.select_boxlayout)
@@ -127,7 +148,7 @@ class QtPanningPlot(QtGui.QmainWindow):
         self.b_log = QPushButton("Open log")
         self.b_log.clicked.connect(self.openLog)
         self.label = QLabel()
-        self.label.setText("the period of the Jie pai qi")
+        self.label.setText("Ready to detect")
         self.output_boxlayout = QtGui.QGridLayout()
         self.output_boxlayout.addWidget(self.label, 0, 0)
         self.output_boxlayout.addWidget(self.b_log, 0, 1, alignment=Qt.AlignRight)
@@ -143,11 +164,7 @@ class QtPanningPlot(QtGui.QmainWindow):
         self.layout.addWidget(self.select_box, 1, 0)
         self.layout.addWidget(self.output_box, 3, 0)
 
-        self.win.setLayout(self.layout)
-        self.win.show()
-
-    def openLog(self):
-        self.log_win.show()
+        self.setLayout(self.layout)
 
     def update(self):
         self.data_raw = self.data_raw[-500:]
@@ -155,7 +172,9 @@ class QtPanningPlot(QtGui.QmainWindow):
     
         if self.data_handled:
             self.curve.setData(np.hstack(self.data_handled))
+
     
+    #when a data come in we firstly filter it and  detect if a person pass by
     def addData(self, d):
         self.data_raw.append(d)
         dh = d
@@ -168,26 +187,34 @@ class QtPanningPlot(QtGui.QmainWindow):
             dh = self.filter_mv185.filter(dh)
 
         #detect if someone pass by
-        if (self.rb_lowpss.isChecked() and self.rb_mv185.isChecked()):
+        if self.rb_lowpss.isChecked() and self.rb_mv185.isChecked():
             detect_result = self.detector.detect(dh)
             if(detect_result):
                 #update log file and text on the window
                 seconds = time.time()
                 local_time = time.ctime(seconds)
                 self.label.setText("A person pass at {}".format(local_time))
+                
+                #add data to log winodw
+                self.detected.emit("A person pass at {}".format(local_time))
 
-                #emit signal
-                self.detected_person.emit("A person pass at {}\n".format(local_time))
-
-
+                #add data to log file
                 log_file = open("history.log", 'a')
-                log_file.write("A person pass at {}".format(local_time))
+                log_file.write("A person pass at {}\n".format(local_time))
                 log_file.close()
         else:
             self.detector.clean()
             self.label.setText("Select all filter to start detect")
 
-
         self.data_handled.append(dh)
+
+    def openLog(self):
+        #open log file
+        self.open_log.emit(True)
+
+    def check_all_filter_selected(self):
+        if self.rb_lowpss.isChecked() and self.rb_mv185.isChecked():
+            self.label.setText("Ready to detect")
+
 
 

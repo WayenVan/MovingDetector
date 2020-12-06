@@ -15,14 +15,15 @@ import webcam2rgb
 
 # create a global QT application object
 app = QtGui.QApplication(sys.argv)
-panningPlot = QtPanningPlot("helloworld")
+#panningPlot = QtPanningPlot("helloworld")
+main_window = MainWindow("person detect system")
 
     
 def callBack(retval, data):
     b = data[0]
     g = data[1]
     r = data[2]
-    panningPlot.addData(r)
+    main_window.addData(r)
 
 camera = webcam2rgb.Webcam2rgb()
 
@@ -34,7 +35,7 @@ app.exec_()
 
 #save data episode for better design filter
 f = open("./data/data_clip.dat", 'wb')
-pickle.dump(panningPlot.data_raw, f)
+#pickle.dump(panningPlot.data_raw, f)
 f.close()
 
 camera.stop()
