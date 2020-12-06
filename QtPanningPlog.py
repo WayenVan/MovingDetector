@@ -1,5 +1,7 @@
 import sys
+from PyQt5.QtGui import QRegularExpressionValidator
 import numpy as np
+from pyqtgraph.graphicsItems.DateAxisItem import DAY_HOUR_ZOOM_LEVEL
 from pyqtgraph.widgets.GroupBox import GroupBox
 import scipy.signal as signal
 
@@ -7,13 +9,46 @@ import scipy.signal as signal
 import pyqtgraph as pg
 from pyqtgraph.Qt import QtCore, QtGui
 
-from PyQt5.QtWidgets import QApplication, QLabel, QMainWindow, QRadioButton, QLineEdit, QVBoxLayout, QCheckBox
-from PyQt5 import QtWidgets
+from PyQt5.QtWidgets import QLabel, QCheckBox, QPushButton
+from PyQt5.QtCore import Qt
 
 #import filters
-import IIR2Filter
 import IIRFilter
 
+import time
+
+class PersonDetector:
+    """a class to detect if a person move"""
+    def __init__(self, min_difference):
+        self.min_difference = min_difference #the min drop to define a person passing by
+        self.data_previous = 0 # data buffer of the previous one
+        self.drop = 0 # the total light drop 
+    
+    def detect(self, newData):
+        if newData<self.data_previous:
+            # calculate accumulation of a continous drop
+            self.drop+=(self.data_previous - newData)
+            self._update(newData)
+            return False
+        else: #drop stop or pixel become higher
+            if self.drop >= self.min_difference: # if total drop larger than we defined, it means something pass throw the webcam
+                self.drop = 0
+                self._update(newData)
+                return True
+            else: 
+                self.drop = 0
+                self._update(newData)
+                return False
+
+    def clean(self):
+        #clean all the data of this detector
+        self.drop = 0
+        self.data_previous = 0
+
+    def _update(self, newData):
+        #update previous data
+        self.data_previous = newData
+    
 
 class QtPanningPlot:
 
@@ -32,12 +67,14 @@ class QtPanningPlot:
         self.data_raw = []
         self.data_handled = []
 
+        self.detector = PersonDetector(70)
+
         #design filter:
-        self.filter_highpass = IIRFilter.IIRFilter(signal.cheby2(8, 40, 0.1/30.0*2, 
-                                        btype='highpass', 
-                                        output='sos'))
-        self.filter_lowpass = IIRFilter.IIRFilter(signal.cheby2(4, 60, 7.5/30.0*2, 
+        self.filter_lowpass = IIRFilter.IIRFilter(signal.cheby2(4, 100, 7.0/30.0*2, 
                                         btype='lowpass', 
+                                        output='sos'))
+        self.filter_mv185 = IIRFilter.IIRFilter(signal.cheby2(4, 10, [1.75/30.0*2, 1.95/30*2],
+                                        btype='bandstop',
                                         output='sos'))
 
         #add widgets in qt
@@ -50,21 +87,22 @@ class QtPanningPlot:
         #add Radio buttons
         self.select_box = GroupBox("filter")
         self.select_boxlayout = QtGui.QGridLayout()
-        self.rb_filter1 = QCheckBox("remove DC")
-        self.rb_filter2 = QCheckBox("remove High")
-        self.rb_filter1.setChecked(True)
-        self.rb_filter2.setChecked(True)
-        self.select_boxlayout.addWidget(self.rb_filter1, 0, 0)
-        self.select_boxlayout.addWidget(self.rb_filter2, 0, 1)
+        self.rb_lowpss = QCheckBox("remove High")
+        self.rb_lowpss.setChecked(True)
+        self.rb_mv185 = QCheckBox("remove 1.85Hz")
+        self.rb_mv185.setChecked(True)
+        self.select_boxlayout.addWidget(self.rb_lowpss, 0, 0)
+        self.select_boxlayout.addWidget(self.rb_mv185, 0, 1)
         self.select_box.setLayout(self.select_boxlayout)
         
-        #add output text
+        #add output text 
         self.output_box = GroupBox("Output")
+        self.b_log = QPushButton("Open log")
         self.label = QLabel()
         self.label.setText("the period of the Jie pai qi")
-        self.output_line = QLineEdit()
         self.output_boxlayout = QtGui.QGridLayout()
         self.output_boxlayout.addWidget(self.label, 0, 0)
+        self.output_boxlayout.addWidget(self.b_log, 0, 1, alignment=Qt.AlignRight)
         self.output_box.setLayout(self.output_boxlayout)
         
         #add timer to refresh
@@ -87,29 +125,32 @@ class QtPanningPlot:
         self.data_handled = self.data_handled[-500:]
     
         if self.data_handled:
-            self.plt.setYRange(0, 256)
             self.curve.setData(np.hstack(self.data_handled))
-        
-        if not (self.rb_filter1.isChecked() and self.rb_filter2.isChecked()):
-            self.label.setText("select all filter to start detection")
-        else:
-            self.label.setText("the period is {}".format(1))
     
     def addData(self, d):
         self.data_raw.append(d)
         dh = d
         
-        if self.rb_filter1.isChecked():
-            dh = self.filter_highpass.filter(dh)
-        if self.rb_filter2.isChecked():
+        #do all filter
+        if self.rb_lowpss.isChecked():
             dh = self.filter_lowpass.filter(dh)
         
-        if self.rb_filter1.isChecked() and self.rb_filter2.isChecked():
-            #detection
-            pass
-        
-        
-        #impelement detect function here!
+        if self.rb_mv185.isChecked():
+            dh = self.filter_mv185.filter(dh)
+
+        #detect
+        if (self.rb_lowpss.isChecked() and self.rb_mv185.isChecked()):
+            detect_result = self.detector.detect(dh)
+            if(detect_result):
+                
+                seconds = time.time()
+                local_time = time.ctime(seconds)
+                self.label.setText(local_time)
+        else:
+            self.detector.clean()
+            self.label.setText("Select all filter to start detect")
+
+
         self.data_handled.append(dh)
 
 
