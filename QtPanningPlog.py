@@ -58,12 +58,14 @@ class MainWindow(QMainWindow):
         self.setWindowTitle(title)
         self.setStyleSheet("QMainWindow {background: 'white'}")
 
+        #add widget
         self.main_widget = PlotWidget()
         self.setCentralWidget(self.main_widget)
 
+        #create lob browser window
         self.log_browser = LogBrowser()
 
-        #connect signal
+        #connecting signal
         self.main_widget.open_log.connect(self.log_browser.open)
         self.main_widget.detected.connect(self.log_browser.detected)
         
