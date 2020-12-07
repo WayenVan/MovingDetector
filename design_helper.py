@@ -18,7 +18,7 @@ d_true = np.array(load_data("./data/data_clip_true.dat"))
 
 N_noise = len(d_noise)
 N_true =  len(d_true)
-Fs = 30.0
+Fs = 25.2
 
 xf_noise = fftshift(fftfreq(N_noise, 1/Fs))
 yf_noise=fftshift(fft(d_noise))

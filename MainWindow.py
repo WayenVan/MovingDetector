@@ -93,6 +93,8 @@ class LogBrowser(QMainWindow):
 
 class PlotWidget(pg.GraphicsLayoutWidget):
     """plotting and detecting widget"""
+
+    #define signals
     detected = QtCore.pyqtSignal(str)
     open_log = QtCore.pyqtSignal(bool)
 
@@ -112,7 +114,7 @@ class PlotWidget(pg.GraphicsLayoutWidget):
         self.filter_lowpass = IIRFilter.IIRFilter(signal.cheby2(4, 100, 7.0/30.0*2, 
                                         btype='lowpass', 
                                         output='sos'))
-        self.filter_mv185 = IIRFilter.IIRFilter(signal.cheby2(6, 10, [1.75/30.0*2, 1.95/30*2],
+        self.filter_mv185 = IIRFilter.IIRFilter(signal.cheby2(8, 20, [1.56/30.0*2, 1.67/30*2],
                                         btype='bandstop',
                                         output='sos'))
 
@@ -190,6 +192,8 @@ class PlotWidget(pg.GraphicsLayoutWidget):
 
         #detect if someone pass by
         if self.rb_lowpss.isChecked() and self.rb_mv185.isChecked():
+            
+            #person detection
             detect_result = self.detector.detect(dh)
             if(detect_result):
                 #update log file and text on the window
@@ -205,6 +209,7 @@ class PlotWidget(pg.GraphicsLayoutWidget):
                 log_file.write("A person pass at {}\n".format(local_time))
                 log_file.close()
         else:
+            #if not select all radias button
             self.detector.clean()
             self.label.setText("Select all filter to start detect")
 
